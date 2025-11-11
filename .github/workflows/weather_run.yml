@@ -2,7 +2,7 @@ name: 🌦️ Hourly Weather Data Fetch
 
 on:
   schedule:
-    - cron: "0 * * * *"   # runs every hour (UTC)
+    - cron: "30 * * * *"    # every hour at :30 UTC = every full hour IST
   workflow_dispatch:      # allows manual trigger
 
 jobs:
