@@ -24,6 +24,11 @@ logging.info("Hourly weather fetch script started.")
 load_dotenv()
 DB_URL = os.getenv("DATABASE_URL")
 
+if not DB_URL:
+    raise ValueError("DATABASE_URL not found in environment!")
+else:
+    print("✅ DATABASE_URL found successfully.")
+
 # ============ City List ============
 cities = [
     {"name": "Mumbai", "lat": 19.0760, "lon": 72.8777},
@@ -60,38 +65,51 @@ cities = [
 ]
 
 # ============ Fetch Weather Data ============
-def fetch_city_data(city):
+def fetch_city_data(city, retries=3):
     LAT, LON, CITY = city["lat"], city["lon"], city["name"]
     urls = {
         "weather": f"https://api.open-meteo.com/v1/forecast?latitude={LAT}&longitude={LON}&hourly=temperature_2m,relativehumidity_2m,windspeed_10m",
         "air": f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={LAT}&longitude={LON}&hourly=pm10,pm2_5,nitrogen_dioxide,ozone"
     }
 
-    try:
-        weather = requests.get(urls["weather"], timeout=10).json()
-        air = requests.get(urls["air"], timeout=10).json()
-        return (
-            CITY,
-            weather["hourly"]["temperature_2m"][0],
-            weather["hourly"]["relativehumidity_2m"][0],
-            weather["hourly"]["windspeed_10m"][0],
-            air["hourly"]["pm10"][0],
-            air["hourly"]["pm2_5"][0],
-            air["hourly"]["nitrogen_dioxide"][0],
-            air["hourly"]["ozone"][0],
-            datetime.now()
-        )
-    except Exception as e:
-        logging.error(f"Error fetching data for {CITY}: {e}")
-        return None
+    for attempt in range(retries):
+        try:
+            weather = requests.get(urls["weather"], timeout=15).json()
+            air = requests.get(urls["air"], timeout=15).json()
+
+            # Extract data safely
+            get = lambda d, k: d.get("hourly", {}).get(k, [None])[0]
+            data = (
+                CITY,
+                get(weather, "temperature_2m"),
+                get(weather, "relativehumidity_2m"),
+                get(weather, "windspeed_10m"),
+                get(air, "pm10"),
+                get(air, "pm2_5"),
+                get(air, "nitrogen_dioxide"),
+                get(air, "ozone"),
+                datetime.now()
+            )
+            print(f"✅ Fetched data for {CITY}")
+            return data
+
+        except Exception as e:
+            if attempt < retries - 1:
+                time.sleep(2)
+            else:
+                logging.error(f"Failed to fetch {CITY}: {e}")
+                return None
 
 # ============ Parallel Fetch ============
 results = []
-with ThreadPoolExecutor(max_workers=5) as executor:
-    for f in as_completed([executor.submit(fetch_city_data, c) for c in cities]):
-        r = f.result()
-        if r: results.append(r)
-        time.sleep(0.2)
+with ThreadPoolExecutor(max_workers=2) as executor:
+    futures = [executor.submit(fetch_city_data, city) for city in cities]
+    for i, f in enumerate(as_completed(futures), 1):
+        data = f.result()
+        if data:
+            results.append(data)
+        print(f"Progress: {i}/{len(cities)} cities processed")
+        time.sleep(0.8)  # prevent rate limit issues
 
 # ============ Database Insert ============
 try:
@@ -103,7 +121,7 @@ try:
         VALUES %s
     """, results)
     conn.commit()
-    print(f"Inserted {len(results)} records.")
+    print(f"✅ Inserted {len(results)} records into database.")
     logging.info(f"Inserted {len(results)} records.")
 except Exception as e:
     print(f"Database insert failed: {e}")
