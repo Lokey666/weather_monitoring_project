@@ -24,15 +24,10 @@ logging.basicConfig(
 logging.info("Hourly weather fetch script started.")
 
 # ============ Load Environment Variables ============
-try:
-    load_dotenv()
-    DATABASE_URL = os.getenv("DATABASE_URL")
-    if not DATABASE_URL:
-        raise ValueError("DATABASE_URL not found in .env")
-    logging.info("Environment variable DATABASE_URL loaded successfully.")
-except Exception as e:
-    logging.error(f"Error loading environment variables: {e}")
-    raise
+load_dotenv()
+
+# Detect database connection mode
+DB_URL = os.getenv("DATABASE_URL")
 
 # ============ City Data ============
 cities = [
@@ -92,28 +87,16 @@ def fetch_city_data(city):
         nitrogen_dioxide = air.get("hourly", {}).get("nitrogen_dioxide", [None])[0]
         ozone = air.get("hourly", {}).get("ozone", [None])[0]
 
-        if None in [temperature, humidity, wind_speed, pm10, pm2_5, nitrogen_dioxide, ozone]:
-            logging.warning(f"Missing data fields for {CITY}")
-
         logging.info(f"Fetched data for {CITY}")
 
         return (
-            CITY,
-            temperature,
-            humidity,
-            wind_speed,
-            pm10,
-            pm2_5,
-            nitrogen_dioxide,
-            ozone,
-            datetime.now()
+            CITY, temperature, humidity, wind_speed,
+            pm10, pm2_5, nitrogen_dioxide, ozone, datetime.now()
         )
 
     except Exception as e:
         logging.error(f"Error fetching data for {CITY}: {e}")
-        return (
-            CITY, None, None, None, None, None, None, None, datetime.now()
-        )
+        return (CITY, None, None, None, None, None, None, None, datetime.now())
 
 # ============ Fetch Data in Parallel ============
 results = []
@@ -123,11 +106,24 @@ with ThreadPoolExecutor(max_workers=8) as executor:
         data = f.result()
         if data:
             results.append(data)
-        time.sleep(0.2)  # delay to avoid API rate limits
+        time.sleep(0.2)  # prevent API rate limits
 
-# ============ Database Insert (Neon Cloud) ============
+# ============ Database Insert ============
 try:
-    conn = psycopg2.connect(DATABASE_URL)
+    # ✅ Works both locally and on GitHub Actions
+    if DB_URL:
+        conn = psycopg2.connect(DB_URL)
+        print("Using DATABASE_URL connection")
+    else:
+        conn = psycopg2.connect(
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASS")
+        )
+        print("Using local database connection")
+
     cur = conn.cursor()
 
     insert_query = """
@@ -138,16 +134,18 @@ try:
 
     execute_values(cur, insert_query, results)
     conn.commit()
-    logging.info(f"Inserted {len(results)} records into Neon DB.")
-    print(f"Inserted {len(results)} records into Neon DB.")
+    logging.info(f"Inserted {len(results)} records into database.")
+    print(f"✅ Inserted {len(results)} records into database.")
 
 except Exception as e:
     logging.error(f"Database insert failed: {e}")
-    print(f"Database insert failed: {e}")
+    print(f"❌ Database insert failed: {e}")
+
 finally:
     if 'cur' in locals():
         cur.close()
     if 'conn' in locals():
         conn.close()
 
-logging.info(" Script completed successfully.")
+logging.info("Script completed successfully.")
+print("Script completed successfully.")
