@@ -1,33 +1,33 @@
+import os
+import time
+import logging
 import requests
 import psycopg2
 from datetime import datetime
 from dotenv import load_dotenv
-import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from psycopg2.extras import execute_values
-import logging
-import time
 
 # ============ Logging Setup ============
-LOG_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../logs'))
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
+LOG_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__ or "."), "../logs"))
+os.makedirs(LOG_DIR, exist_ok=True)
 
 log_filename = os.path.join(LOG_DIR, f"weather_log_{datetime.now().strftime('%Y-%m-%d')}.log")
-
 logging.basicConfig(
     filename=log_filename,
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
-
 logging.info("Hourly weather fetch script started.")
 
 # ============ Load Environment Variables ============
 load_dotenv()
-
-# Detect database connection mode
 DB_URL = os.getenv("DATABASE_URL")
+
+if DB_URL:
+    print("DATABASE_URL found in environment.")
+else:
+    print("DATABASE_URL not found. Falling back to local .env settings.")
 
 # ============ City Data ============
 cities = [
@@ -65,19 +65,18 @@ cities = [
 ]
 
 # ============ Fetch Weather & Air Data ============
-def fetch_city_data(city):
-    LAT, LON, CITY = city["lat"], city["lon"], city["name"]
+def fetch_city_data(city: dict):
+    lat, lon, city_name = city["lat"], city["lon"], city["name"]
 
     urls = {
-        "weather": f"https://api.open-meteo.com/v1/forecast?latitude={LAT}&longitude={LON}&hourly=temperature_2m,relativehumidity_2m,windspeed_10m",
-        "air": f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={LAT}&longitude={LON}&hourly=pm10,pm2_5,nitrogen_dioxide,ozone"
+        "weather": f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=temperature_2m,relativehumidity_2m,windspeed_10m",
+        "air": f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&hourly=pm10,pm2_5,nitrogen_dioxide,ozone"
     }
 
-    session = requests.Session()
-
     try:
-        weather = session.get(urls["weather"], timeout=10).json()
-        air = session.get(urls["air"], timeout=10).json()
+        with requests.Session() as session:
+            weather = session.get(urls["weather"], timeout=10).json()
+            air = session.get(urls["air"], timeout=10).json()
 
         temperature = weather.get("hourly", {}).get("temperature_2m", [None])[0]
         humidity = weather.get("hourly", {}).get("relativehumidity_2m", [None])[0]
@@ -87,34 +86,37 @@ def fetch_city_data(city):
         nitrogen_dioxide = air.get("hourly", {}).get("nitrogen_dioxide", [None])[0]
         ozone = air.get("hourly", {}).get("ozone", [None])[0]
 
-        logging.info(f"Fetched data for {CITY}")
-
-        return (
-            CITY, temperature, humidity, wind_speed,
-            pm10, pm2_5, nitrogen_dioxide, ozone, datetime.now()
-        )
+        logging.info(f"Fetched data for {city_name}")
+        return (city_name, temperature, humidity, wind_speed, pm10, pm2_5, nitrogen_dioxide, ozone, datetime.now())
 
     except Exception as e:
-        logging.error(f"Error fetching data for {CITY}: {e}")
-        return (CITY, None, None, None, None, None, None, None, datetime.now())
+        logging.error(f"Error fetching data for {city_name}: {e}")
+        return (city_name, None, None, None, None, None, None, None, datetime.now())
 
-# ============ Fetch Data in Parallel ============
+# ============ Parallel Fetch ============
 results = []
 with ThreadPoolExecutor(max_workers=8) as executor:
     futures = [executor.submit(fetch_city_data, city) for city in cities]
     for f in as_completed(futures):
-        data = f.result()
-        if data:
-            results.append(data)
-        time.sleep(0.2)  # prevent API rate limits
+        result = f.result()
+        if result:
+            results.append(result)
+        time.sleep(0.2)  # avoid rate limit
 
 # ============ Database Insert ============
 try:
-    # ✅ Works both locally and on GitHub Actions
+    conn = None
     if DB_URL:
+        DB_URL = DB_URL.strip().replace('"', "").replace("'", "")
+        if "sslmode" not in DB_URL:
+            if DB_URL.endswith("/"):
+                DB_URL = DB_URL[:-1]
+            DB_URL += "?sslmode=require"
+
+        print(f"Using DATABASE_URL connection: {DB_URL[:50]}...")
         conn = psycopg2.connect(DB_URL)
-        print("Using DATABASE_URL connection")
     else:
+        print("💻 Using local DB connection from .env file")
         conn = psycopg2.connect(
             host=os.getenv("DB_HOST"),
             port=os.getenv("DB_PORT"),
@@ -122,30 +124,28 @@ try:
             user=os.getenv("DB_USER"),
             password=os.getenv("DB_PASS")
         )
-        print("Using local database connection")
 
     cur = conn.cursor()
-
     insert_query = """
-    INSERT INTO weather_data
-    (city, temperature, humidity, wind_speed, pm10, pm2_5, nitrogen_dioxide, ozone, timestamp)
-    VALUES %s
+        INSERT INTO weather_data
+        (city, temperature, humidity, wind_speed, pm10, pm2_5, nitrogen_dioxide, ozone, timestamp)
+        VALUES %s
     """
-
     execute_values(cur, insert_query, results)
     conn.commit()
+
+    print(f"Inserted {len(results)} records into database.")
     logging.info(f"Inserted {len(results)} records into database.")
-    print(f"✅ Inserted {len(results)} records into database.")
 
 except Exception as e:
+    print(f"Database insert failed: {e}")
     logging.error(f"Database insert failed: {e}")
-    print(f"❌ Database insert failed: {e}")
 
 finally:
-    if 'cur' in locals():
+    if 'cur' in locals() and cur:
         cur.close()
-    if 'conn' in locals():
+    if conn:
         conn.close()
 
-logging.info("Script completed successfully.")
 print("Script completed successfully.")
+logging.info("Script completed successfully.")
