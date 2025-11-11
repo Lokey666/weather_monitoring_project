@@ -2,15 +2,15 @@ name: 🌦️ Hourly Weather Data Fetch
 
 on:
   schedule:
-    - cron: "0 * * * *"  # runs every hour (UTC time)
-  workflow_dispatch:     # allows manual trigger from GitHub UI
+    - cron: "0 * * * *"   # runs every hour (UTC)
+  workflow_dispatch:      # allows manual trigger
 
 jobs:
   fetch-weather:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📦 Checkout repository
+      - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
       - name: 🐍 Set up Python
@@ -18,10 +18,20 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: ⚙️ Install dependencies
-        run: pip install -r requirements.txt
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: 🌍 Run weather fetch script
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python scripts/weather_fetch.py
+        run: |
+          python scripts/weather_fetch.py
+
+      - name: 📁 Upload logs as artifact
+        if: always()  # ensures logs are uploaded even if the script fails
+        uses: actions/upload-artifact@v4
+        with:
+          name: weather-logs
+          path: logs/*.log

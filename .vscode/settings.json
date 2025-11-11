@@ -1,0 +1,29 @@
+{
+    "sqltools.connections": [
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "vendor_project",
+            "database": "vendor_project",
+            "username": "postgres"
+        },
+        {
+            "pgOptions": {
+                "ssl": {
+                    "rejectUnauthorized": true
+                }
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "ep-morning-resonance-a1x3yoyw-pooler.ap-southeast-1.aws.neon.tech",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "Neon_Weather_DB",
+            "database": "neondb",
+            "username": "neondb_owner"
+        }
+    ]
+}

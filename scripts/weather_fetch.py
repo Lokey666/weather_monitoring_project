@@ -20,14 +20,18 @@ logging.basicConfig(
 )
 logging.info("Hourly weather fetch script started.")
 
-# ============ Environment Setup ============
+# ============ Load Environment ============
 load_dotenv()
 DB_URL = os.getenv("DATABASE_URL")
 
-if not DB_URL:
-    raise ValueError("DATABASE_URL not found in environment!")
-else:
-    print("✅ DATABASE_URL found successfully.")
+# ============ Safe Getter ============
+def safe_get(data, key):
+    """Return first hourly value if available, else None."""
+    try:
+        values = data.get("hourly", {}).get(key, [])
+        return values[0] if values else None
+    except Exception:
+        return None
 
 # ============ City List ============
 cities = [
@@ -76,34 +80,29 @@ def fetch_city_data(city):
         weather = requests.get(urls["weather"], timeout=10).json()
         air = requests.get(urls["air"], timeout=10).json()
 
-        # Extract safely (return None if not available)
-        get = lambda d, k: d.get("hourly", {}).get(k, [None])[0]
-
         return (
             CITY,
-            get(weather, "temperature_2m"),
-            get(weather, "relativehumidity_2m"),
-            get(weather, "windspeed_10m"),
-            get(air, "pm10"),
-            get(air, "pm2_5"),
-            get(air, "nitrogen_dioxide"),
-            get(air, "ozone"),
+            safe_get(weather, "temperature_2m"),
+            safe_get(weather, "relativehumidity_2m"),
+            safe_get(weather, "windspeed_10m"),
+            safe_get(air, "pm10"),
+            safe_get(air, "pm2_5"),
+            safe_get(air, "nitrogen_dioxide"),
+            safe_get(air, "ozone"),
             datetime.now()
         )
-
     except Exception as e:
-        # Always return the city with all nulls if error occurs
-        logging.error(f"⚠️ Error fetching data for {CITY}: {e}")
+        logging.error(f"Error fetching data for {CITY}: {e}")
         return (CITY, None, None, None, None, None, None, None, datetime.now())
 
 # ============ Parallel Fetch ============
 results = []
-with ThreadPoolExecutor(max_workers=5) as executor:
-    futures = [executor.submit(fetch_city_data, city) for city in cities]
-    for i, f in enumerate(as_completed(futures), 1):
-        data = f.result()
-        results.append(data)  # always append (even with None)
-        print(f"Processed {i}/{len(cities)} cities")
+with ThreadPoolExecutor(max_workers=6) as executor:
+    for f in as_completed([executor.submit(fetch_city_data, c) for c in cities]):
+        r = f.result()
+        if r:
+            results.append(r)
+        time.sleep(0.1)  # slight delay to avoid rate limiting
 
 # ============ Database Insert ============
 try:
@@ -115,8 +114,8 @@ try:
         VALUES %s
     """, results)
     conn.commit()
-    print(f"Inserted {len(results)} records into database.")
-    logging.info(f"Inserted {len(results)} records.")
+    print(f"Inserted {len(results)} records successfully.")
+    logging.info(f"Inserted {len(results)} records successfully.")
 except Exception as e:
     print(f"Database insert failed: {e}")
     logging.error(f"Database insert failed: {e}")
