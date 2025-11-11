@@ -1,9 +1,10 @@
-name: 🌦️ Hourly Weather Data Fetch
+name: 🌦️ Hourly Weather Data Fetch (IST Synced)
 
 on:
   schedule:
-    - cron: "0 * * * *"   # runs every hour (UTC)
-  workflow_dispatch:      # allows manual trigger
+    # Run every hour starting 12 AM IST on 12 Nov (=> 6:30 PM UTC 11 Nov)
+    - cron: "30 18 * * *"  # 06:30 PM UTC = 12:00 AM IST
+  workflow_dispatch:        # allow manual runs
 
 jobs:
   fetch-weather:
@@ -26,11 +27,10 @@ jobs:
       - name: 🌍 Run weather fetch script
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          python scripts/weather_fetch.py
+        run: python scripts/weather_fetch.py
 
       - name: 📁 Upload logs as artifact
-        if: always()  # ensures logs are uploaded even if the script fails
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: weather-logs
