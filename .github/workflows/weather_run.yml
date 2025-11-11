@@ -10,26 +10,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧾 Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: 🌍 Run weather fetch script
+      - name: Run weather fetch script
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           python scripts/weather_fetch.py
 
-      - name: 📁 Upload logs as artifact
+      - name: Upload logs as artifact
         if: always()  # ensures logs are uploaded even if the script fails
         uses: actions/upload-artifact@v4
         with:
