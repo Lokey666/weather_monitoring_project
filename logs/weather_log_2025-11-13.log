@@ -168,3 +168,37 @@
 2025-11-12 22:39:15 [ERROR] Error fetching data for Leh: HTTPSConnectionPool(host='api.open-meteo.com', port=443): Read timed out. (read timeout=10)
 2025-11-12 22:39:17 [INFO] Inserted 31 records successfully at 2025-11-13 04:09:17.296868+05:30 (IST).
 2025-11-12 22:39:17 [INFO] Script completed successfully (IST).
+2025-11-12 23:38:48 [INFO] 🌦️ Hourly weather fetch script started (IST).
+2025-11-12 23:38:49 [INFO] Fetched data for Mumbai at 2025-11-13 05:08:49.660004+05:30 (IST).
+2025-11-12 23:38:49 [INFO] Fetched data for Hyderabad at 2025-11-13 05:08:49.662981+05:30 (IST).
+2025-11-12 23:38:49 [INFO] Fetched data for Chennai at 2025-11-13 05:08:49.665375+05:30 (IST).
+2025-11-12 23:38:49 [INFO] Fetched data for Bengaluru at 2025-11-13 05:08:49.673280+05:30 (IST).
+2025-11-12 23:38:49 [INFO] Fetched data for Kolkata at 2025-11-13 05:08:49.695984+05:30 (IST).
+2025-11-12 23:38:49 [INFO] Fetched data for Delhi at 2025-11-13 05:08:49.710285+05:30 (IST).
+2025-11-12 23:38:50 [INFO] Fetched data for Bhopal at 2025-11-13 05:08:50.648929+05:30 (IST).
+2025-11-12 23:38:50 [INFO] Fetched data for Patna at 2025-11-13 05:08:50.653543+05:30 (IST).
+2025-11-12 23:38:50 [INFO] Fetched data for Lucknow at 2025-11-13 05:08:50.659446+05:30 (IST).
+2025-11-12 23:38:50 [INFO] Fetched data for Jaipur at 2025-11-13 05:08:50.683574+05:30 (IST).
+2025-11-12 23:38:50 [INFO] Fetched data for Gandhinagar at 2025-11-13 05:08:50.724993+05:30 (IST).
+2025-11-12 23:38:50 [INFO] Fetched data for Chandigarh at 2025-11-13 05:08:50.766739+05:30 (IST).
+2025-11-12 23:38:51 [INFO] Fetched data for Bhubaneswar at 2025-11-13 05:08:51.591456+05:30 (IST).
+2025-11-12 23:38:51 [INFO] Fetched data for Thiruvananthapuram at 2025-11-13 05:08:51.633911+05:30 (IST).
+2025-11-12 23:38:51 [INFO] Fetched data for Imphal at 2025-11-13 05:08:51.655023+05:30 (IST).
+2025-11-12 23:38:51 [INFO] Fetched data for Dispur at 2025-11-13 05:08:51.673528+05:30 (IST).
+2025-11-12 23:38:51 [INFO] Fetched data for Agartala at 2025-11-13 05:08:51.699240+05:30 (IST).
+2025-11-12 23:38:51 [INFO] Fetched data for Aizawl at 2025-11-13 05:08:51.783772+05:30 (IST).
+2025-11-12 23:38:52 [INFO] Fetched data for Shillong at 2025-11-13 05:08:52.569918+05:30 (IST).
+2025-11-12 23:38:52 [INFO] Fetched data for Itanagar at 2025-11-13 05:08:52.678766+05:30 (IST).
+2025-11-12 23:38:52 [INFO] Fetched data for Kohima at 2025-11-13 05:08:52.681779+05:30 (IST).
+2025-11-12 23:38:52 [INFO] Fetched data for Gangtok at 2025-11-13 05:08:52.696129+05:30 (IST).
+2025-11-12 23:38:52 [INFO] Fetched data for Dehradun at 2025-11-13 05:08:52.718999+05:30 (IST).
+2025-11-12 23:38:52 [INFO] Fetched data for Raipur at 2025-11-13 05:08:52.744399+05:30 (IST).
+2025-11-12 23:38:53 [INFO] Fetched data for Ranchi at 2025-11-13 05:08:53.637002+05:30 (IST).
+2025-11-12 23:38:53 [INFO] Fetched data for Kavaratti at 2025-11-13 05:08:53.683851+05:30 (IST).
+2025-11-12 23:38:53 [INFO] Fetched data for Puducherry at 2025-11-13 05:08:53.712826+05:30 (IST).
+2025-11-12 23:38:53 [INFO] Fetched data for Panaji at 2025-11-13 05:08:53.730388+05:30 (IST).
+2025-11-12 23:38:53 [INFO] Fetched data for Port Blair at 2025-11-13 05:08:53.763418+05:30 (IST).
+2025-11-12 23:38:53 [INFO] Fetched data for Srinagar at 2025-11-13 05:08:53.807050+05:30 (IST).
+2025-11-12 23:38:54 [INFO] Fetched data for Leh at 2025-11-13 05:08:54.682892+05:30 (IST).
+2025-11-12 23:38:57 [INFO] Inserted 31 records successfully at 2025-11-13 05:08:57.090259+05:30 (IST).
+2025-11-12 23:38:57 [INFO] Script completed successfully (IST).
