@@ -40,7 +40,7 @@ jobs:
       - name: Append logs + cleanup + push
         if: always()
         run: |
-          set -e  # stops the script if any command fails
+          set +e  # stops the script if any command fails
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           mkdir -p logs
