@@ -23,6 +23,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
+
 logging.info("🌦️ Hourly weather fetch script started (IST).")
 
 # ============ Load Environment ============
@@ -85,9 +86,10 @@ def fetch_city_data(city):
         weather = requests.get(urls["weather"], timeout=10).json()
         air = requests.get(urls["air"], timeout=10).json()
 
+        # Get current IST timestamp
         ist_now = datetime.now(IST)
 
-        logging.info(f"Fetched data for {CITY} at {ist_now}.")
+        logging.info(f"Fetched data for {CITY} at {ist_now} (IST).")
         return (
             CITY,
             safe_get(weather, "temperature_2m"),
@@ -97,7 +99,7 @@ def fetch_city_data(city):
             safe_get(air, "pm2_5"),
             safe_get(air, "nitrogen_dioxide"),
             safe_get(air, "ozone"),
-            ist_now
+            ist_now  # timezone-aware timestamp
         )
     except Exception as e:
         logging.error(f"Error fetching data for {CITY}: {e}")
@@ -117,15 +119,20 @@ with ThreadPoolExecutor(max_workers=6) as executor:
 try:
     conn = psycopg2.connect(DB_URL)
     cur = conn.cursor()
+
+    # Insert with explicit timezone awareness
     execute_values(cur, """
         INSERT INTO weather_data
         (city, temperature, humidity, wind_speed, pm10, pm2_5, nitrogen_dioxide, ozone, timestamp)
         VALUES %s
     """, results)
+
     conn.commit()
 
-    logging.info(f"Inserted {len(results)} records successfully at {datetime.now(IST)} (IST).")
-    print(f"Inserted {len(results)} records successfully.")
+    now_ist = datetime.now(IST)
+    logging.info(f"Inserted {len(results)} records successfully at {now_ist} (IST).")
+    print(f"Inserted {len(results)} records successfully at {now_ist.strftime('%Y-%m-%d %H:%M:%S')} (IST).")
+
 except Exception as e:
     logging.error(f"Database insert failed: {e}")
     print(f"Database insert failed: {e}")
@@ -134,4 +141,4 @@ finally:
     if 'conn' in locals(): conn.close()
 
 logging.info("Script completed successfully (IST).")
-print("Script completed successfully.")
+print(f"Script completed successfully at {datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')} (IST).")
