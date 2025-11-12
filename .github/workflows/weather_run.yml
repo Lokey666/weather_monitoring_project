@@ -2,35 +2,78 @@ name: 🌦️ Hourly Weather Data Fetch
 
 on:
   schedule:
-    - cron: "30 * * * *"    # every hour at :30 UTC = every full hour IST
-  workflow_dispatch:      # allows manual trigger
+    - cron: "30 * * * *"    # Every hour at :30 UTC (≈ every full hour IST)
+  workflow_dispatch:         # Allows manual trigger
+
+permissions:
+  contents: write            # Required to push changes to repo
 
 jobs:
   fetch-weather:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      # Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+      # Run your weather fetch script
       - name: Run weather fetch script
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           python scripts/weather_fetch.py
 
+      # Append and clean logs, then push to repo
+      - name: Append logs + cleanup + push
+        if: always()
+        run: |
+          set -e  # stops the script if any command fails
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p logs
+
+          # Append today's new log into master combined log
+          if [ -f logs/weather.log ]; then
+            echo "Appending latest log..."
+            {
+              echo ""
+              echo "===== Log entry from $(date '+%Y-%m-%d %H:%M:%S') ====="
+              cat logs/weather.log
+              echo ""
+            } >> logs/combined_log.txt
+          else
+            echo "No logs/weather.log file found to append."
+          fi
+
+          # Optional: Save a timestamped copy of each run
+          if [ -f logs/weather.log ]; then
+            cp logs/weather.log logs/weather_$(date '+%Y-%m-%d_%H-%M-%S').log
+          fi
+
+          # Delete per-run logs older than 7 days
+          find logs/ -type f -mtime +7 -name "weather_*.log" -exec rm {} \; || echo "No old logs to delete"
+
+          # Commit and push changes
+          git add logs/
+          git commit -m "Auto-update logs on $(date '+%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
+
+      # Upload the latest logs as artifacts (optional)
       - name: Upload logs as artifact
-        if: always()  # ensures logs are uploaded even if the script fails
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: weather-logs
