@@ -1,6 +1,6 @@
 import requests
 import psycopg2
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 import os
 from psycopg2.extras import execute_values
@@ -8,17 +8,22 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import time
 
+# ============ Timezone Setup (IST) ============
+IST = timezone(timedelta(hours=5, minutes=30))
+
 # ============ Logging Setup ============
 LOG_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../logs'))
 os.makedirs(LOG_DIR, exist_ok=True)
-log_filename = os.path.join(LOG_DIR, f"weather_log_{datetime.now().strftime('%Y-%m-%d')}.log")
+log_filename = os.path.join(LOG_DIR, f"weather_log_{datetime.now(IST).strftime('%Y-%m-%d')}.log")
 
+# Configure logging to include IST timestamps
 logging.basicConfig(
     filename=log_filename,
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
 )
-logging.info("Hourly weather fetch script started.")
+logging.info("🌦️ Hourly weather fetch script started (IST).")
 
 # ============ Load Environment ============
 load_dotenv()
@@ -80,6 +85,9 @@ def fetch_city_data(city):
         weather = requests.get(urls["weather"], timeout=10).json()
         air = requests.get(urls["air"], timeout=10).json()
 
+        ist_now = datetime.now(IST)
+
+        logging.info(f"Fetched data for {CITY} at {ist_now}.")
         return (
             CITY,
             safe_get(weather, "temperature_2m"),
@@ -89,16 +97,17 @@ def fetch_city_data(city):
             safe_get(air, "pm2_5"),
             safe_get(air, "nitrogen_dioxide"),
             safe_get(air, "ozone"),
-            datetime.now()
+            ist_now
         )
     except Exception as e:
         logging.error(f"Error fetching data for {CITY}: {e}")
-        return (CITY, None, None, None, None, None, None, None, datetime.now())
+        return (CITY, None, None, None, None, None, None, None, datetime.now(IST))
 
 # ============ Parallel Fetch ============
 results = []
 with ThreadPoolExecutor(max_workers=6) as executor:
-    for f in as_completed([executor.submit(fetch_city_data, c) for c in cities]):
+    futures = [executor.submit(fetch_city_data, c) for c in cities]
+    for f in as_completed(futures):
         r = f.result()
         if r:
             results.append(r)
@@ -114,14 +123,15 @@ try:
         VALUES %s
     """, results)
     conn.commit()
+
+    logging.info(f"Inserted {len(results)} records successfully at {datetime.now(IST)} (IST).")
     print(f"Inserted {len(results)} records successfully.")
-    logging.info(f"Inserted {len(results)} records successfully.")
 except Exception as e:
-    print(f"Database insert failed: {e}")
     logging.error(f"Database insert failed: {e}")
+    print(f"Database insert failed: {e}")
 finally:
     if 'cur' in locals(): cur.close()
     if 'conn' in locals(): conn.close()
 
-logging.info("Script completed successfully.")
+logging.info("Script completed successfully (IST).")
 print("Script completed successfully.")
