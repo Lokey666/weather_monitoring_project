@@ -16,7 +16,6 @@ LOG_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../logs'))
 os.makedirs(LOG_DIR, exist_ok=True)
 log_filename = os.path.join(LOG_DIR, f"weather_log_{datetime.now(IST).strftime('%Y-%m-%d')}.log")
 
-# Configure logging to include IST timestamps
 logging.basicConfig(
     filename=log_filename,
     level=logging.INFO,
@@ -24,18 +23,18 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
-logging.info("🌦️ Hourly weather fetch script started (IST).")
+logging.info("🌦️ Real-time weather fetch script started (IST).")
 
 # ============ Load Environment ============
 load_dotenv()
 DB_URL = os.getenv("DATABASE_URL")
 
-# ============ Safe Getter ============
-def safe_get(data, key):
-    """Return first hourly value if available, else None."""
+# ============ Real-time Safe Getter ============
+def safe_get_latest(data, key):
+    """Return the **latest hour** value from hourly array."""
     try:
         values = data.get("hourly", {}).get(key, [])
-        return values[0] if values else None
+        return values[-1] if values else None
     except Exception:
         return None
 
@@ -77,6 +76,7 @@ cities = [
 # ============ Fetch Weather Data ============
 def fetch_city_data(city):
     LAT, LON, CITY = city["lat"], city["lon"], city["name"]
+    
     urls = {
         "weather": f"https://api.open-meteo.com/v1/forecast?latitude={LAT}&longitude={LON}&hourly=temperature_2m,relativehumidity_2m,windspeed_10m",
         "air": f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={LAT}&longitude={LON}&hourly=pm10,pm2_5,nitrogen_dioxide,ozone"
@@ -86,21 +86,32 @@ def fetch_city_data(city):
         weather = requests.get(urls["weather"], timeout=10).json()
         air = requests.get(urls["air"], timeout=10).json()
 
-        # Get current IST timestamp
-        ist_now = datetime.now(IST)
+        # Latest hour only
+        time_list = weather.get("hourly", {}).get("time", [])
+        latest_timestamp = time_list[-1] if time_list else None
 
-        logging.info(f"Fetched data for {CITY} at {ist_now} (IST).")
+        if latest_timestamp:
+            dt = datetime.fromisoformat(latest_timestamp)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            dt_ist = dt.astimezone(IST)
+        else:
+            dt_ist = datetime.now(IST)
+
+        logging.info(f"Fetched LATEST data for {CITY} at {dt_ist} (IST).")
+
         return (
             CITY,
-            safe_get(weather, "temperature_2m"),
-            safe_get(weather, "relativehumidity_2m"),
-            safe_get(weather, "windspeed_10m"),
-            safe_get(air, "pm10"),
-            safe_get(air, "pm2_5"),
-            safe_get(air, "nitrogen_dioxide"),
-            safe_get(air, "ozone"),
-            ist_now  # timezone-aware timestamp
+            safe_get_latest(weather, "temperature_2m"),
+            safe_get_latest(weather, "relativehumidity_2m"),
+            safe_get_latest(weather, "windspeed_10m"),
+            safe_get_latest(air, "pm10"),
+            safe_get_latest(air, "pm2_5"),
+            safe_get_latest(air, "nitrogen_dioxide"),
+            safe_get_latest(air, "ozone"),
+            dt_ist  
         )
+
     except Exception as e:
         logging.error(f"Error fetching data for {CITY}: {e}")
         return (CITY, None, None, None, None, None, None, None, datetime.now(IST))
@@ -110,17 +121,14 @@ results = []
 with ThreadPoolExecutor(max_workers=6) as executor:
     futures = [executor.submit(fetch_city_data, c) for c in cities]
     for f in as_completed(futures):
-        r = f.result()
-        if r:
-            results.append(r)
-        time.sleep(0.1)  # slight delay to avoid rate limiting
+        results.append(f.result())
+        time.sleep(0.1)
 
 # ============ Database Insert ============
 try:
     conn = psycopg2.connect(DB_URL)
     cur = conn.cursor()
 
-    # Insert with explicit timezone awareness
     execute_values(cur, """
         INSERT INTO weather_data
         (city, temperature, humidity, wind_speed, pm10, pm2_5, nitrogen_dioxide, ozone, timestamp)
@@ -130,8 +138,8 @@ try:
     conn.commit()
 
     now_ist = datetime.now(IST)
-    logging.info(f"Inserted {len(results)} records successfully at {now_ist} (IST).")
-    print(f"Inserted {len(results)} records successfully at {now_ist.strftime('%Y-%m-%d %H:%M:%S')} (IST).")
+    logging.info(f"Inserted {len(results)} REAL-TIME rows successfully at {now_ist} (IST).")
+    print(f"Inserted {len(results)} real-time rows at {now_ist.strftime('%Y-%m-%d %H:%M:%S')} (IST).")
 
 except Exception as e:
     logging.error(f"Database insert failed: {e}")
@@ -140,5 +148,5 @@ finally:
     if 'cur' in locals(): cur.close()
     if 'conn' in locals(): conn.close()
 
-logging.info("Script completed successfully (IST).")
-print(f"Script completed successfully at {datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')} (IST).")
+logging.info("Real-time script completed (IST).")
+print(f"Script completed at {datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')} (IST).")
