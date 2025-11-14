@@ -65,8 +65,7 @@ def fetch_weather(lat, lon):
         "pm10": aq.get("pm10"),
         "pm25": aq.get("pm2_5"),
         "no2": aq.get("no2"),
-        "o3": aq.get("o3"),
-        "timestamp": cur.get("last_updated")
+        "o3": aq.get("o3")
     }
 
 # ================= WAQI FETCH ==================
@@ -97,8 +96,7 @@ def fetch_city(city):
     no2  = a["no2"]  if a else w["no2"]
     o3   = a["o3"]   if a else w["o3"]
 
-    ts = w["timestamp"]
-    dt = datetime.strptime(ts, "%Y-%m-%d %H:%M").replace(tzinfo=IST) if ts else datetime.now(IST)
+    dt = datetime.now(IST)
 
     return (name, w["temp"], w["humidity"], w["wind"], pm10, pm25, no2, o3, dt)
 
