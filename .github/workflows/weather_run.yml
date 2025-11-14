@@ -1,4 +1,4 @@
-name: weather_aqi_fetch
+name: weather_run
 
 on:
   schedule:
@@ -29,4 +29,4 @@ jobs:
           echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
 
       - name: Run Weather Script
-        run: python weather_realtime_aqi.py
+        run:  weather_aqi_fetch
