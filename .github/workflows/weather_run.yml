@@ -1,18 +1,9 @@
-name: 🌦️ Hourly Weather Data Fetch
+name: weather_aqi_fetch
 
 on:
   schedule:
-    # Run every hour at :15 UTC = :45 IST (best time for latest API hour)
-    - cron: "15 * * * *"
-  workflow_dispatch:   # manual run support
-
-concurrency:
-  group: weather
-  cancel-in-progress: true
-
-permissions:
-  contents: read    # no need for write since we won't push commits
-  actions: write
+    - cron: "30 * * * *"   # Every hour IST
+  workflow_dispatch:
 
 jobs:
   fetch-weather:
@@ -23,25 +14,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
+          python-version: "3.10"
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt
 
-      - name: Run weather fetch script
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Create .env file
         run: |
-          python scripts/weather_fetch.py
+          echo "WEATHER_API_KEY=${{ secrets.WEATHER_API_KEY }}" >> .env
+          echo "WAQI_API_KEY=${{ secrets.WAQI_API_KEY }}" >> .env
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
 
-      # Gather all logs and attach as artifact
-      - name: Collect & Upload Logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: weather-logs
-          path: logs/
+      - name: Run Weather Script
+        run: python weather_realtime_aqi.py
