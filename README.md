@@ -111,8 +111,8 @@ Through this project, I gained experience in:
 ## 📊 Dashboards (Preview)
 
 ### 🌡️ Weather & AQI Dashboard
-![Visual](powerbi\Visuals\01_dashboard_1.png)
-![Visual](powerbi\Visuals\02_dashboard_2.png)
+![Visual](powerbi/Visuals/01_dashboard_1.png)
+![Visual](powerbi/Visuals/02_dashboard_2.png)
 
 
 ## 🚀 Future Enhancements & Upscaling
